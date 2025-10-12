@@ -1,0 +1,71 @@
+import { useMemo, useState } from 'react'
+import SearchBar from '../components/SearchBar'
+import DataTable from '../components/DataTable'
+import UploadExport from '../components/UploadExport'
+import LiquidCard from '../components/LiquidCard'
+import LiquidModal from '../components/LiquidModal'
+import ContactForm from '../components/ContactForm'
+import { useAuth } from '../auth/AuthContext'
+import { loadRows, saveRows, ContactRow, STORE, rowCanEdit } from '../utils/dataset'
+import { RequireAuth } from '../auth/guards'
+
+function ContactsInner() {
+  const { user } = useAuth()
+  const [rows, setRows] = useState<ContactRow[]>(loadRows<ContactRow[]>(STORE.contacts, []))
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<ContactRow | null>(null)
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    return rows.filter(i => !s || (i.contact ?? '').toLowerCase().includes(s))
+  }, [rows, q])
+
+  function persist(next: ContactRow[]) { setRows(next); saveRows(STORE.contacts, next) }
+  function onImport(newRows: ContactRow[]) { persist(newRows) }
+  function add() { setEditing(null); setOpen(true) }
+  function onEdit(row: ContactRow) { setEditing(row); setOpen(true) }
+  function onDelete(id: string) { persist(rows.filter(r => r.id !== id)) }
+  function onSubmit(row: ContactRow) {
+    const data = { ...row, ownerId: row.ownerId ?? user?.id }
+    const exists = rows.some(r => r.id === data.id)
+    const next = exists ? rows.map(r => (r.id === data.id ? data : r)) : [...rows, data]
+    persist(next); setOpen(false)
+  }
+
+  return (
+    <div className="p-4 grid gap-4">
+      <div className="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
+        <SearchBar value={q} onChange={setQ} placeholder="Поиск по контактам..." />
+        <div className="flex gap-2">
+          <UploadExport type="contacts" rows={rows} onImport={onImport} filename="contacts" />
+          <button className="glass px-3 py-2 rounded-2xl hover:bg-white/10" onClick={add}>+ Добавить</button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <LiquidCard>Загрузите файл с колонкой “Contact persons” или “Contacted person”.</LiquidCard>
+      ) : (
+        <DataTable<ContactRow>
+          columns={[ { key: 'contact', title: 'Контакты' } ]}
+          rows={filtered}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          canEditRow={(r)=>rowCanEdit(user, r)}
+        />
+      )}
+
+      <LiquidModal open={open} title={editing ? 'Редактировать контакт' : 'Новый контакт'} onClose={()=>setOpen(false)}>
+        <ContactForm initial={editing ?? undefined} onSubmit={onSubmit} onCancel={()=>setOpen(false)} />
+      </LiquidModal>
+    </div>
+  )
+}
+
+export default function Contacts() {
+  return (
+    <RequireAuth>
+      <ContactsInner />
+    </RequireAuth>
+  )
+}

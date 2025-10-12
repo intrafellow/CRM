@@ -1,0 +1,59 @@
+# === ОС / редакторы ===
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.history/
+
+# === Node / Vite ===
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Логи
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Кэш
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.turbo/
+coverage/
+
+# === Env и секреты ===
+.env
+.env.*
+!.env.example
+
+# === Yarn / pnpm (на случай Berry) ===
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnpm-store/
+
+# === Python (у тебя видно .venv) ===
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# === Временные ===
+tmp/
+temp/
+
+# === NDA ===
+/data

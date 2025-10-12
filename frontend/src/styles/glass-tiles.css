@@ -1,0 +1,16 @@
+/* Modal row action tiles (reference look) */
+.icon-tile{
+  width:52px;height:52px;border-radius:14px;
+  background: rgba(16, 22, 35, .58);
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 26px rgba(3,7,18,.35), inset 0 1px 0 rgba(255,255,255,.06);
+  display:inline-flex;align-items:center;justify-content:center;
+  transition: transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.icon-tile:hover{ background: rgba(16, 22, 35, .68); border-color: rgba(255,255,255,.20) }
+.icon-tile:active{ transform: translateY(1px) scale(.99) }
+.icon-tile[disabled]{ opacity:.35; cursor:not-allowed; filter:saturate(.7) }
+/* Icon stroke/size */
+.icon-tile svg{ width:22px;height:22px; stroke:#B9C2D3; stroke-width:1.8; fill:none; }

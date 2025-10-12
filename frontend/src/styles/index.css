@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Liquid Glass tokens (повышенный контраст) */
+:root {
+  --glass-bg: rgba(255,255,255,0.12);
+  --glass-stroke: rgba(255,255,255,0.28);
+}
+
+html, body {
+  color: rgb(226 232 240); /* why: явно светлый текст на тёмном фоне */
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--glass-stroke);
+  box-shadow: 0 10px 40px rgba(0,0,0,.45), inset 0 0 0.5px rgba(255,255,255,.22);
+  border-radius: 16px;
+}
+
+/* Единообразные плейсхолдеры/фокус для интерактивных элементов */
+input, select, textarea, button {
+  color: rgb(241 245 249);
+}
+input::placeholder,
+select::placeholder,
+textarea::placeholder {
+  color: rgba(255,255,255,.65);
+}
+:focus-visible {
+  outline: 2px solid rgba(255,255,255,.5);
+  outline-offset: 2px;
+}
+
+/* Скроллбар */
+::-webkit-scrollbar { height: 10px; width: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 9999px; }
+
+/* Recharts tooltip high-contrast */
+.recharts-default-tooltip { backdrop-filter: blur(8px) saturate(160%); }
+

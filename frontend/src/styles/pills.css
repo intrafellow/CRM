@@ -1,0 +1,18 @@
+/* stable pill buttons: fixed height & padding, no shrink */
+.pill-fixed{
+  display:inline-flex; align-items:center; justify-content:center;
+  height: 40px; padding: 0 14px; border-radius: 9999px;
+  line-height: 1; font-weight: 500; white-space: nowrap;
+  -webkit-user-select:none; user-select:none; flex-shrink:0;
+}
+.glass{ background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+.pill-fixed:hover{ background: rgba(255,255,255,.10); }
+.pill-fixed:disabled{ opacity:.5; cursor:not-allowed; }
+.file-info{
+  font-size:12px; opacity:.75; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width: 240px;
+}
+@media (min-width: 768px){ .file-info{ max-width: 320px; } }
+@media (min-width: 1024px){ .file-info{ max-width: 420px; } }
