@@ -1,115 +1,96 @@
-import React from 'react'
+import React from 'react';
 
+export type ColumnDef<T> = {
+  key: keyof T | string;
+  title?: string;
+  width?: string | number;
+  nowrap?: boolean;
+  className?: string;
+};
 
-export type Column<T> = {
-  key: keyof T | string
-  title: string
-  width?: string
-  nowrap?: boolean
-  className?: string
-}
+type Props<T> = {
+  rows: T[];
+  columns?: ColumnDef<T>[];
+  onEdit?: (row: T)=>void;
+  onDelete?: (id: string)=>void;
+  canEditRow?: (row: T)=>boolean;
+  idKey?: keyof T | 'id';
+};
 
-export default function DataTable<T extends { id?: string }>({
-  columns,
-  rows,
-  onEdit,
-  onDelete,
-  canEditRow,
-}: {
-  columns: Column<T>[]
-  rows: T[]
-  onEdit?: (row: T) => void
-  onDelete?: (id: string) => void
-  canEditRow?: (row: T) => boolean
-}) {
-  const renderCell = (row: T, col: Column<T>) => {
-    const key = String(col.key)
-    // @ts-ignore — доступ по индексу
-    const raw = row[key]
-    const val = raw == null ? '' : String(raw)
-    const tdClass =
-      (col.nowrap ? 'whitespace-nowrap ' : 'whitespace-normal break-words ') +
-      (col.className ?? '')
-    return (
-      <td
-        key={key}
-        className={`px-2 py-1.5 border-b border-white/5 align-top ${tdClass}`}
-        title={val}
-      >
-        {val}
-      </td>
-    )
-  }
+function cls(...a: (string|false|undefined)[]) { return a.filter(Boolean).join(' '); }
+
+export default function DataTable<T extends Record<string, any>>({
+  rows, columns, onEdit, onDelete, canEditRow, idKey='id'
+}: Props<T>) {
+
+  const first = rows[0] ?? {};
+  const cols: ColumnDef<T>[] = (columns && columns.length>0)
+    ? columns
+    : Object.keys(first).map((k)=>({ key: k, title: String(k) }));
 
   return (
-    <div className="w-full overflow-x-auto rounded-2xl">
-      <table className="w-full table-auto text-[11px] md:text-[12px] leading-4">
-        {/* Ширины колонок */}
+    <div className="overflow-auto rounded-2xl border border-white/10">
+      <table className="min-w-full table-fixed">
         <colgroup>
-          {/* actions */}
           <col style={{ width: '60px' }} />
-          {columns.map((c) => (
-            <col
-              key={String(c.key)}
-              style={c.width ? { width: c.width } : undefined}
-            />
+          {cols.map((c)=>(
+            <col key={String(c.key)} style={c.width ? {width: c.width} : {}} />
           ))}
         </colgroup>
-
-        <thead>
-          <tr className="text-left">
-            {/* пустой th вместо названия "Действия" */}
-            <th className="px-1 py-1 border-b border-white/10" />
-            {columns.map((c) => (
-              <th
-                key={String(c.key)}
-                className={`px-2 py-2 border-b border-white/10 whitespace-nowrap ${c.className ?? ''}`}
-              >
-                {c.title}
+        <thead className="text-left text-slate-200/80">
+          <tr>
+            <th className="px-3 py-2 font-semibold"> </th>
+            {cols.map((c)=>(
+              <th key={String(c.key)} className={cls(
+                "px-3 py-2 font-semibold",
+                c?.nowrap ? "whitespace-nowrap" : "whitespace-normal break-words",
+                c?.className
+              )}>
+                {c.title ?? String(c.key)}
               </th>
             ))}
           </tr>
         </thead>
-
-        <tbody>
-          {rows.map((r) => {
-            const id = r.id ?? ''
-            const allowed = canEditRow ? !!canEditRow(r) : true
+        <tbody className="text-slate-100/90">
+          {rows.map((r, idx)=> {
+            const id = (r[idKey] ?? r['id'] ?? String(idx)) as string;
+            const can = canEditRow ? !!canEditRow(r) : true;
             return (
-              <tr key={id || Math.random()} className="border-t border-white/15 hover:bg-white/10">
-                {/* actions */}
-                <td className="px-1 py-1 border-b border-white/5">
-                  <div className="flex items-center gap-1">
+              <tr key={id} className="border-t border-white/10 hover:bg-white/5">
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2">
                     {onEdit && (
                       <button
-                        title={allowed ? 'Редактировать' : 'Нет прав'}
-                        className="tile-btn w-8 h-8 p-0 flex items-center justify-center"
-                        onClick={() => allowed && onEdit(r)}
-                        disabled={!allowed}
-                      >
-                        ✎
-                      </button>
+                        title={can ? "Редактировать" : "Нет прав"}
+                        className={cls("px-2 py-1 rounded-lg bg-white/5", !can && "opacity-50 cursor-not-allowed")}
+                        onClick={()=> can && onEdit(r)}
+                        disabled={!can}
+                      >✎</button>
                     )}
                     {onDelete && (
                       <button
-                        title={allowed ? 'Удалить' : 'Нет прав'}
-                        className="tile-btn w-8 h-8 p-0 flex items-center justify-center"
-                        onClick={() => allowed && onDelete(id)}
-                        disabled={!allowed || !id}
-                      >
-                        ✕
-                      </button>
+                        title={can ? "Удалить" : "Нет прав"}
+                        className={cls("px-2 py-1 rounded-lg bg-white/5", !can && "opacity-50 cursor-not-allowed")}
+                        onClick={()=> can && onDelete(id)}
+                        disabled={!can}
+                      >✕</button>
                     )}
                   </div>
                 </td>
-
-                {/* data cells */}
-                {columns.map((c) => renderCell(r, c))}
+                {cols.map((c)=>(
+                  <td key={String(c.key)} className={cls(
+                    "px-3 py-2 align-top",
+                    c?.nowrap ? "whitespace-nowrap" : "whitespace-normal break-words",
+                    c?.className
+                  )}>
+                    {String(r[c.key as keyof T] ?? '')}
+                  </td>
+                ))}
               </tr>
-            )
+            );
           })}
         </tbody>
       </table>
     </div>
-  )
+  );
 }

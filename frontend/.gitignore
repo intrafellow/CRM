@@ -4,6 +4,11 @@ Thumbs.db
 .idea/
 .vscode/
 .history/
+.cursor/
+*.bak
+*.bak.*
+*.orig
+*.rej
 
 # === Node / Vite ===
 node_modules/
