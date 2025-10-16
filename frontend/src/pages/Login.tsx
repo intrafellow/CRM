@@ -84,11 +84,11 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowMockUsers(!showMockUsers)}
-              className="flex items-center gap-2 text-sm text-white/70 hover:text-white/90 transition-colors"
+              className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 transition-colors"
             >
               <Users size={16} />
               Тестовые пользователи
-              <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs bg-black/10 px-2 py-0.5 rounded-full">
                 {showMockUsers ? 'скрыть' : 'показать'}
               </span>
             </button>
@@ -96,7 +96,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={runDiagnostics}
-                className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition-colors"
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
                 title="Запустить диагностику системы"
               >
                 🔍 Диагностика
@@ -104,7 +104,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={resetMockUsers}
-                className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition-colors"
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
                 title="Сбросить и пересоздать тестовых пользователей"
               >
                 <RefreshCw size={12} />
@@ -114,24 +114,24 @@ export default function Login() {
           </div>
           
           {showMockUsers && (
-            <div className="mt-3 p-4 glass rounded-lg border border-white/10">
-              <div className="text-sm text-white/80 mb-3">Нажмите на пользователя для автозаполнения:</div>
+            <div className="mt-3 p-4 glass rounded-lg border border-black/10">
+              <div className="text-sm text-slate-700 mb-3">Нажмите на пользователя для автозаполнения:</div>
               <div className="grid gap-2">
                 {mockUsers.map((user, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => fillCredentials(user.email, user.password)}
-                    className="flex items-center justify-between p-2 rounded border border-white/10 hover:border-white/20 hover:bg-white/5 transition-all text-left"
+                    className="flex items-center justify-between p-2 rounded border border-black/10 hover:border-black/20 hover:bg-black/5 transition-all text-left"
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-lg">{user.icon}</span>
                       <div>
-                        <div className="text-sm font-medium text-white">{user.email}</div>
-                        <div className="text-xs text-white/60">Пароль: {user.password}</div>
+                        <div className="text-sm font-medium text-slate-900">{user.email}</div>
+                        <div className="text-xs text-slate-600">Пароль: {user.password}</div>
                       </div>
                     </div>
-                    <div className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                    <div className="text-xs bg-black/10 px-2 py-1 rounded-full">
                       {user.role}
                     </div>
                   </button>
@@ -165,11 +165,11 @@ export default function Login() {
                 variant="ghost"
                 subtle
                 className={
-                  // why: маленькая и круглая, спокойная как у Google
+                  // why: маленькая и круглая, спокойная как у Google (светлая тема)
                   'rounded-full text-sm px-3 py-1.5 leading-none ' +
-                  'border border-white/10 bg-white/5 text-white/80 ' +
-                  'hover:bg-white/10 hover:text-white ' +
-                  'focus-visible:ring-2 focus-visible:ring-white/30 ' +
+                  'border border-black/20 bg-transparent text-slate-700 ' +
+                  'hover:bg-black/5 hover:text-slate-900 ' +
+                  'focus-visible:ring-2 focus-visible:ring-black/20 ' +
                   'active:scale-[.99] transition'
                 }
               >

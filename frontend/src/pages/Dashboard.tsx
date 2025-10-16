@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import LiquidCard from '../components/LiquidCard'
 import ChartCard from '../components/ChartCard'
 import DealsModal from '../components/DealsModal'
@@ -6,10 +6,11 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid
 } from 'recharts'
-import { KEYS, pickFirst, loadRows, STORE } from '../utils/dataset'
+import { KEYS, pickFirst } from '../utils/dataset'
+import * as API from '../api'
 
-type DealRow = Record<string, unknown> & { id?: string }
-type ContactRow = Record<string, unknown> & { id?: string }
+type DealRow = Record<string, unknown> & { id?: string; ownerId?: string }
+type ContactRow = Record<string, unknown> & { id?: string; contact?: string }
 type ModalState = { open: false } | { open: true; title: string; rows: DealRow[] }
 
 const PALETTE = ['#93C5FD','#A78BFA','#60A5FA','#F472B6','#34D399','#FBBF24','#F87171','#22D3EE','#A7F3D0','#FDE68A']
@@ -41,9 +42,46 @@ function getUniqueContacts(contacts: ContactRow[], deals: DealRow[]) {
 }
 
 export default function Dashboard() {
-  const allDeals = loadRows<DealRow>(STORE.deals, [])
-  const allContacts = loadRows<ContactRow>(STORE.contacts, [])
+  const [allDeals, setAllDeals] = useState<DealRow[]>([])
+  const [allContacts, setAllContacts] = useState<ContactRow[]>([])
+  const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<ModalState>({ open: false })
+
+  // Загрузка данных из API
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [contacts, deals] = await Promise.all([
+        API.getContacts(),
+        API.getDeals()
+      ])
+      
+      // Преобразование контактов
+      const contactRows: ContactRow[] = contacts.map(c => ({
+        id: c.id,
+        contact: c.contact,
+        ownerId: c.owner_id
+      }))
+      
+      // Преобразование сделок (добавляем все поля из data)
+      const dealRows: DealRow[] = deals.map(d => ({
+        id: d.id,
+        ownerId: d.owner_id,
+        ...d.data
+      }))
+      
+      setAllContacts(contactRows)
+      setAllDeals(dealRows)
+    } catch (err) {
+      console.error('Ошибка загрузки данных:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  useEffect(() => {
+    loadData()
+  }, [])
 
   const contactsCount = useMemo(() => getUniqueContacts(allContacts, allDeals).size, [allContacts, allDeals])
   const dealsCount = allDeals.length
@@ -58,29 +96,59 @@ export default function Dashboard() {
     setModal({ open: true, title: `${title} — ${rows.length}`, rows })
   }
 
+  // Callback функции для DealsModal
+  const handleUpdateDeal = async (id: string, dealData: DealRow) => {
+    const { id: _, ownerId, ...data } = dealData
+    await API.updateDeal(id, { data })
+    await loadData()
+    setModal({ open: false })
+  }
+
+  const handleDeleteDeal = async (id: string) => {
+    await API.deleteDeal(id)
+    await loadData()
+    setModal({ open: false })
+  }
+
+  const handleAddDeal = async (dealData: DealRow) => {
+    const { id, ownerId, ...data } = dealData
+    await API.createDeal({ data })
+    await loadData()
+    setModal({ open: false })
+  }
+
   const tooltipStyles = {
     wrapperStyle: { outline: 'none' },
     contentStyle: {
-      background: 'rgba(8,12,20,0.82)',
-      border: '1px solid rgba(255,255,255,0.15)',
-      color: '#E6EDF6',
+      background: 'rgba(100,116,139,0.85)',
+      border: '1px solid rgba(0,0,0,0.25)',
+      color: '#ffffff',
       borderRadius: '12px',
-      backdropFilter: 'blur(12px) saturate(140%)',
-      WebkitBackdropFilter: 'blur(12px) saturate(140%)'
+      backdropFilter: 'blur(18px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+      boxShadow: '0 10px 30px rgba(0,0,0,.2), inset 0 0 0.5px rgba(255,255,255,.4)'
     } as React.CSSProperties,
-    labelStyle: { color: '#E6EDF6', opacity: 0.9 },
-    itemStyle:  { color: '#E6EDF6' }
+    labelStyle: { color: '#ffffff', opacity: 0.95 },
+    itemStyle:  { color: '#ffffff' }
   }
 
-  const axisTick = { fill: '#E6EDF6', opacity: 0.85, fontSize: 12 }
-  const axisLine = { stroke: 'rgba(255,255,255,0.25)' }
-  const gridLine = 'rgba(255,255,255,0.15)'
+  const axisTick = { fill: '#1f2937', opacity: 0.9, fontSize: 12 }
+  const axisLine = { stroke: 'rgba(0,0,0,0.25)' }
+  const gridLine = 'rgba(0,0,0,0.1)'
 
   const metrics = [
     { label: 'Контакты', value: contactsCount },
     { label: 'Сделки', value: dealsCount },
     { label: 'Ответственные (разные)', value: byResponsible.filter(x => x.name && x.name !== '—').length },
   ]
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <LiquidCard>Загрузка данных...</LiquidCard>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-4">
@@ -190,6 +258,9 @@ export default function Dashboard() {
         title={modal.open ? modal.title : ''}
         rows={modal.open ? modal.rows : []}
         onClose={() => setModal({ open: false })}
+        onUpdate={handleUpdateDeal}
+        onDelete={handleDeleteDeal}
+        onAdd={handleAddDeal}
       />
     </div>
   )

@@ -4,7 +4,7 @@ type Props = { children: ReactNode; className?: string; as?: keyof JSX.Intrinsic
 export default function LiquidCard({ children, className = '', as: Tag = 'div' }: Props) {
   // why: унифицируем контраст контейнера
   return (
-    <Tag className={`glass p-5 rounded-2xl text-slate-100 ${className}`}>
+    <Tag className={`glass p-5 rounded-2xl text-slate-900 ${className}`}>
       {children}
     </Tag>
   )

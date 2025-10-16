@@ -29,7 +29,7 @@ export default function DataTable<T extends Record<string, any>>({
     : Object.keys(first).map((k)=>({ key: k, title: String(k) }));
 
   return (
-    <div className="overflow-auto rounded-2xl border border-white/10">
+    <div className="overflow-auto rounded-2xl border border-black/10">
       <table className="min-w-full table-fixed">
         <colgroup>
           <col style={{ width: '60px' }} />
@@ -37,7 +37,7 @@ export default function DataTable<T extends Record<string, any>>({
             <col key={String(c.key)} style={c.width ? {width: c.width} : {}} />
           ))}
         </colgroup>
-        <thead className="text-left text-slate-200/80">
+        <thead className="text-left text-slate-700">
           <tr>
             <th className="px-3 py-2 font-semibold"> </th>
             {cols.map((c)=>(
@@ -51,18 +51,18 @@ export default function DataTable<T extends Record<string, any>>({
             ))}
           </tr>
         </thead>
-        <tbody className="text-slate-100/90">
+        <tbody className="text-slate-900/90">
           {rows.map((r, idx)=> {
             const id = (r[idKey] ?? r['id'] ?? String(idx)) as string;
             const can = canEditRow ? !!canEditRow(r) : true;
             return (
-              <tr key={id} className="border-t border-white/10 hover:bg-white/5">
+              <tr key={id} className="border-t border-black/10 hover:bg-black/5">
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
                     {onEdit && (
                       <button
                         title={can ? "Редактировать" : "Нет прав"}
-                        className={cls("px-2 py-1 rounded-lg bg-white/5", !can && "opacity-50 cursor-not-allowed")}
+                        className={cls("px-2 py-1 rounded-lg bg-black/5", !can && "opacity-50 cursor-not-allowed")}
                         onClick={()=> can && onEdit(r)}
                         disabled={!can}
                       >✎</button>
@@ -70,7 +70,7 @@ export default function DataTable<T extends Record<string, any>>({
                     {onDelete && (
                       <button
                         title={can ? "Удалить" : "Нет прав"}
-                        className={cls("px-2 py-1 rounded-lg bg-white/5", !can && "opacity-50 cursor-not-allowed")}
+                        className={cls("px-2 py-1 rounded-lg bg-black/5", !can && "opacity-50 cursor-not-allowed")}
                         onClick={()=> can && onDelete(id)}
                         disabled={!can}
                       >✕</button>

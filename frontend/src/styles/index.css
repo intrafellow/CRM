@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Liquid Glass tokens (повышенный контраст) */
+/* Liquid Glass tokens (light theme) */
 :root {
-  --glass-bg: rgba(255,255,255,0.12);
-  --glass-stroke: rgba(255,255,255,0.28);
+  --glass-bg: rgba(255,255,255,0.45);
+  --glass-stroke: rgba(0,0,0,0.12);
 }
 
 html, body {
-  color: rgb(226 232 240); /* why: явно светлый текст на тёмном фоне */
+  color: rgb(15 23 42);
 }
 
 .glass {
@@ -23,22 +23,29 @@ html, body {
 
 /* Единообразные плейсхолдеры/фокус для интерактивных элементов */
 input, select, textarea, button {
-  color: rgb(241 245 249);
+  color: rgb(15 23 42);
 }
 input::placeholder,
 select::placeholder,
 textarea::placeholder {
-  color: rgba(255,255,255,.65);
+  color: rgba(0,0,0,.45);
 }
 :focus-visible {
-  outline: 2px solid rgba(255,255,255,.5);
+  outline: 2px solid rgba(0,0,0,.35);
   outline-offset: 2px;
 }
 
 /* Скроллбар */
 ::-webkit-scrollbar { height: 10px; width: 10px; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 9999px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 9999px; }
 
-/* Recharts tooltip high-contrast */
-.recharts-default-tooltip { backdrop-filter: blur(8px) saturate(160%); }
+/* Recharts tooltip: dark grey liquid-glass */
+.recharts-default-tooltip {
+  background: rgba(100,116,139,0.85) !important;
+  border: 1px solid rgba(0,0,0,0.25) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2), inset 0 0 0.5px rgba(255,255,255,.4) !important;
+}
 

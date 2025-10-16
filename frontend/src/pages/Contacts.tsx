@@ -7,59 +7,143 @@ import LiquidModal from '../components/LiquidModal';
 import ContactForm from '../components/ContactForm';
 import { RequireAuth } from '../auth/guards';
 import { useAuth } from '../auth/AuthContext';
-import { loadRows, ContactRow, STORE, rowCanEdit } from '../utils/dataset';
-import { findHeader, CONTACT_HEADER_CANDIDATES } from '../utils/headers';
-import { saveRowsAndNotify, subscribeStore, replaceDealsFromContacts } from '../utils/crossSync';
+import { ContactRow, rowCanEdit } from '../utils/dataset';
+import * as API from '../api';
 
-function normalizeContacts(raw: Record<string, unknown>[], ownerId?: string): ContactRow[] {
-  if (!raw || raw.length===0) return [];
-  const headers = Object.keys(raw[0] ?? {});
-  const key = findHeader(headers, CONTACT_HEADER_CANDIDATES);
-  return raw.map((r, i) => {
-    const id = (r['id'] as string) || `c_${Date.now()}_${i}`;
-    const contact = (key ? String((r as any)[key] ?? '') : String(r['contact'] ?? '')).trim();
-    return { id, contact, ownerId };
-  }).filter(r => r.contact);
+// Преобразование API Contact в ContactRow
+function toContactRow(apiContact: API.Contact): ContactRow {
+  return {
+    id: apiContact.id,
+    contact: apiContact.contact,
+    ownerId: apiContact.owner_id
+  };
+}
+
+function normalizeContactsForImport(raw: Record<string, unknown>[]): Record<string, any>[] {
+  if (!raw || raw.length === 0) return [];
+  
+  const contacts: Array<{ contact: string }> = [];
+  const seen = new Set<string>();
+  
+  // Извлекаем контакты из всех возможных колонок
+  for (const row of raw) {
+    // Проверяем все колонки с контактами
+    const advisor = String(row['Advisor'] ?? '').trim();
+    const sourceName = String(row['Source Name'] ?? '').trim();
+    const contactedPerson = String(row['Contacted person'] ?? '').trim();
+    const contactPersons = String(row['Contact persons'] ?? '').trim();
+    
+    // Добавляем уникальные контакты из всех колонок
+    [advisor, sourceName, contactedPerson, contactPersons].forEach(contact => {
+      if (contact && !seen.has(contact)) {
+        seen.add(contact);
+        contacts.push({ contact });
+      }
+    });
+  }
+  
+  return contacts;
 }
 
 function ContactsInner() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<ContactRow[]>(loadRows<ContactRow[]>(STORE.contacts, []));
+  const [rows, setRows] = useState<ContactRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ContactRow | null>(null);
 
+  // Загрузка контактов из API
+  const loadContacts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const contacts = await API.getContacts();
+      setRows(contacts.map(toContactRow));
+    } catch (err: any) {
+      setError(err.message || 'Ошибка загрузки контактов');
+      console.error('Ошибка загрузки контактов:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const off = subscribeStore([STORE.contacts, STORE.deals], () => setRows(loadRows(STORE.contacts, [])));
-    return off;
+    loadContacts();
   }, []);
 
-  const filtered = useMemo(()=>{
+  const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter(r => !s || String(r.contact ?? '').toLowerCase().includes(s));
   }, [rows, q]);
 
-  function persist(next: ContactRow[]) {
-    setRows(next);
-    saveRowsAndNotify(STORE.contacts, next);
-  }
-
-  function onImport(generic: any[]) {
-    // ПОЛНАЯ ЗАМЕНА контактов + ownerId загрузившего
-    const normalized = normalizeContacts(generic, user?.id);
-    persist(normalized);
-    // ПОЛНАЯ ЗАМЕНА сделок (зеркало исходных строк) + ownerId загрузившего
-    try { replaceDealsFromContacts(generic as any[], user?.id); } catch {}
+  async function onImport(generic: any[]) {
+    try {
+      const normalized = normalizeContactsForImport(generic);
+      if (normalized.length === 0) {
+        alert('Нет данных для импорта');
+        return;
+      }
+      
+      await API.importContacts({ contacts: normalized });
+      await loadContacts(); // Перезагружаем список
+    } catch (err: any) {
+      alert(`Ошибка импорта: ${err.message}`);
+    }
   }
 
   function add() { setEditing(null); setOpen(true); }
   function onEdit(row: ContactRow) { setEditing(row); setOpen(true); }
-  function onDelete(id: string) { persist(rows.filter(r => r.id !== id)); }
-  function onSubmit(row: ContactRow) {
-    const withOwner: ContactRow = { ...row, ownerId: row.ownerId ?? user?.id };
-    const exists = rows.some(r => r.id === withOwner.id);
-    const next = exists ? rows.map(r => (r.id === withOwner.id ? withOwner : r)) : [...rows, { ...withOwner, id: withOwner.id ?? `c_${Date.now()}` }];
-    persist(next); setOpen(false);
+  
+  async function onDelete(id: string) {
+    if (!confirm('Удалить контакт?')) return;
+    try {
+      await API.deleteContact(id);
+      await loadContacts();
+    } catch (err: any) {
+      alert(`Ошибка удаления: ${err.message}`);
+    }
+  }
+  
+  async function onSubmit(row: ContactRow) {
+    try {
+      if (editing) {
+        // Обновление существующего
+        await API.updateContact(editing.id, { contact: row.contact });
+      } else {
+        // Создание нового
+        await API.createContact({ contact: row.contact });
+      }
+      await loadContacts();
+      setOpen(false);
+    } catch (err: any) {
+      alert(`Ошибка сохранения: ${err.message}`);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <LiquidCard>Загрузка контактов...</LiquidCard>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <LiquidCard>
+          <div className="text-red-400">Ошибка: {error}</div>
+          <button 
+            className="mt-2 glass px-3 py-2 rounded-2xl hover:bg-white/10" 
+            onClick={loadContacts}
+          >
+            Повторить
+          </button>
+        </LiquidCard>
+      </div>
+    );
   }
 
   return (
@@ -73,7 +157,9 @@ function ContactsInner() {
       </div>
 
       {rows.length === 0 ? (
-        <LiquidCard>Загрузите файл с колонкой “Source Name / Contacted person / Contact persons”.</LiquidCard>
+        <LiquidCard>
+          Нет контактов. Добавьте контакт или загрузите CSV файл.
+        </LiquidCard>
       ) : (
         <DataTable<ContactRow>
           rows={filtered}

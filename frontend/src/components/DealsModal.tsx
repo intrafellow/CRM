@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import LiquidModal from './LiquidModal'
-import { KEYS, pickFirst, loadRows, saveRows, STORE } from '../utils/dataset'
+import { KEYS, pickFirst } from '../utils/dataset'
 import { useAuth } from '../auth/AuthContext'
 
 export type DealRow = Record<string, unknown> & {
@@ -49,8 +49,16 @@ function Pill({ children, active, onClick }:{
 }
 
 export default function DealsModal({
-  open, title, rows, onClose
-}: { open:boolean; title:string; rows:DealRow[]; onClose:()=>void }) {
+  open, title, rows, onClose, onUpdate, onDelete, onAdd
+}: { 
+  open:boolean; 
+  title:string; 
+  rows:DealRow[]; 
+  onClose:()=>void;
+  onUpdate?: (id: string, data: DealRow) => Promise<void>;
+  onDelete?: (id: string) => Promise<void>;
+  onAdd?: (data: DealRow) => Promise<void>;
+}) {
   const { user } = useAuth()
 
   const [baseRows, setBaseRows] = useState<DealRow[]>([])
@@ -86,47 +94,57 @@ export default function DealsModal({
   }
   const cancelEdit = () => { setEditingId(null); setDraft({}) }
 
-  const applyEdit = () => {
+  const applyEdit = async () => {
     if (!editingId) return
-    setBaseRows(prev => {
-      const updated = prev.map(r => {
-        if (r.id !== editingId) return r
-        const next: DealRow = { ...r }
-        Object.keys(draft).forEach(k => { if (!isHidden(k)) (next as any)[k] = draft[k] })
-        return next
-      })
-      const all = loadRows<DealRow>(STORE.deals, [])
-      const merged = all.map(r => {
-        if (r.id !== editingId) return r
-        const next: DealRow = { ...r }
-        Object.keys(draft).forEach(k => { if (!isHidden(k)) (next as any)[k] = draft[k] })
-        return next
-      })
-      saveRows(STORE.deals, merged)
-      return updated
-    })
-    setEditingId(null); setDraft({})
+    
+    const currentRow = baseRows.find(r => r.id === editingId)
+    if (!currentRow) return
+    
+    const updatedRow: DealRow = { ...currentRow }
+    Object.keys(draft).forEach(k => { if (!isHidden(k)) (updatedRow as any)[k] = draft[k] })
+    
+    try {
+      // Если это новая запись (нет id в исходных данных) или есть callback для добавления
+      const isNewRow = !rows.find(r => r.id === editingId)
+      
+      if (isNewRow && onAdd) {
+        await onAdd(updatedRow)
+      } else if (onUpdate) {
+        await onUpdate(editingId, updatedRow)
+      }
+      
+      // Обновляем локальное состояние
+      setBaseRows(prev => prev.map(r => r.id === editingId ? updatedRow : r))
+      setEditingId(null)
+      setDraft({})
+    } catch (err: any) {
+      alert(`Ошибка сохранения: ${err.message}`)
+    }
   }
 
-  const removeRow = (row: DealRow) => {
+  const removeRow = async (row: DealRow) => {
     if (!canEdit(row)) return
+    if (!confirm('Удалить сделку?')) return
+    
     const id = row.id
-    setBaseRows(prev => prev.filter(r => r.id !== id))
-    const all = loadRows<DealRow>(STORE.deals, [])
-    saveRows(STORE.deals, all.filter(r => r.id !== id))
+    if (!id) return
+    
+    try {
+      if (onDelete) {
+        await onDelete(id)
+      }
+      setBaseRows(prev => prev.filter(r => r.id !== id))
+    } catch (err: any) {
+      alert(`Ошибка удаления: ${err.message}`)
+    }
   }
 
   const addRow = () => {
     if (!user?.email) return
     const id = genId()
-    const empty: DealRow = { id, _owner: user.email }
+    const empty: DealRow = { id, ownerId: user.email }
     allKeysOrdered.forEach(k => { (empty as any)[k] = '' })
-    setBaseRows(prev => {
-      const next = [empty, ...prev]
-      const all = loadRows<DealRow>(STORE.deals, [])
-      saveRows(STORE.deals, [empty, ...all])
-      return next
-    })
+    setBaseRows(prev => [empty, ...prev])
     setEditingId(id)
     const d: Record<string,string> = {}
     allKeysOrdered.forEach(k => { d[k] = '' })
@@ -189,19 +207,19 @@ export default function DealsModal({
       onClose={onClose}
       maxWidth="max-w-6xl"
     >
-      <div className="glass rounded-2xl p-3 mb-3 border border-white/15">
+      <div className="glass rounded-2xl p-3 mb-3 border border-black/10">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="Поиск..."
-            className="input pill rounded-full px-3 py-2 flex-1 bg-white/10 border border-white/20 outline-none"
+            className="input pill rounded-full px-3 py-2 flex-1 bg-black/5 border border-black/20 outline-none"
           />
           <div className="flex items-center gap-3 ml-auto">
             <button
               type="button"
               onClick={clearAll}
-              className="pill rounded-full px-3 py-2 bg-white/10 border border-white/25 hover:bg-white/14"
+              className="pill rounded-full px-3 py-2 bg-black/5 border border-black/20 hover:bg-black/10"
             >Сбросить</button>
             <button
               type="button"
@@ -224,12 +242,12 @@ export default function DealsModal({
         </div>
 
         {openKey && (
-          <div className="mt-3 glass rounded-2xl p-3 border border-white/12">
+          <div className="mt-3 glass rounded-2xl p-3 border border-black/10">
             <div className="flex items-center justify-between mb-2">
               <div className="text-sm opacity-80 capitalize">Выбор: {openKey}</div>
               <button
                 type="button"
-                className="pill rounded-full px-3 py-1 bg-white/10 border border-white/25 hover:bg-white/14"
+                className="pill rounded-full px-3 py-1 bg-black/5 border border-black/20 hover:bg-black/10"
                 onClick={()=>setOpenKey(null)}
               >Назад</button>
             </div>
@@ -252,9 +270,9 @@ export default function DealsModal({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left">
-                <th className="px-3 py-2 border-b border-white/10 whitespace-nowrap opacity-80">Действия</th>
+                <th className="px-3 py-2 border-b border-black/10 whitespace-nowrap opacity-80">Действия</th>
                 {cols.map(c => (
-                  <th key={c} className="px-3 py-2 border-b border-white/10 whitespace-nowrap opacity-80">{c}</th>
+                  <th key={c} className="px-3 py-2 border-b border-black/10 whitespace-nowrap opacity-80">{c}</th>
                 ))}
               </tr>
             </thead>
@@ -263,8 +281,8 @@ export default function DealsModal({
                 const editing = editingId === r.id
                 const allowed = canEdit(r)
                 return (
-                  <tr key={r.id as string} className="hover:bg-white/5">
-                    <td className="px-3 py-2 border-b border-white/5 whitespace-nowrap">
+                  <tr key={r.id as string} className="hover:bg-black/5">
+                    <td className="px-3 py-2 border-b border-black/5 whitespace-nowrap">
                       {!editing ? (
                         <div className="flex items-center gap-3">
                           <button
@@ -296,13 +314,13 @@ export default function DealsModal({
                       )}
                     </td>
                     {cols.map(c => (
-                      <td key={c} className="px-3 py-2 border-b border-white/5 whitespace-nowrap">
+                      <td key={c} className="px-3 py-2 border-b border-black/5 whitespace-nowrap">
                         {(() => {
                           const isEditing = editingId === r.id
                           if (!isEditing) return S((r as any)[c])
                           return (
                             <input
-                              className="px-2 py-1 bg-white/10 border border-white/20 rounded-md outline-none w-full"
+                              className="px-2 py-1 bg-black/5 border border-black/20 rounded-md outline-none w-full"
                               value={(r.id === editingId ? (S((r as any)[c]) ?? '') : S((r as any)[c])) || draft[c] || ''}
                               onChange={(e)=>setDraft(d => ({ ...d, [c]: e.target.value }))}
                               onKeyDown={(e)=>{ if (e.key==='Enter') applyEdit(); if (e.key==='Escape') cancelEdit() }}
