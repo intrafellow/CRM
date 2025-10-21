@@ -1,39 +1,30 @@
 import { useState } from 'react'
-import LiquidCard from './GlassCard' // не обязателен, но чтобы сохранить стеклянный вид внутри модалки
 import { useAuth } from '../auth/AuthContext'
 
 export type DealRow = Record<string, any> & { id?: string; ownerId?: string; _owner?: string }
 
-const FIELDS: Array<{key: string; label: string; type?: 'text' | 'textarea'}> = [
-  { key: 'Company',           label: 'Company' },
-  { key: 'Date',              label: 'Date' },
-  { key: 'Sector',            label: 'Sector' },
-  { key: 'Seniot',            label: 'Seniot' },
-  { key: 'Junior team',       label: 'Junior team' },
-  { key: 'Source',            label: 'Source' },
-  { key: 'Source Name',       label: 'Source Name' },
-  { key: 'Type',              label: 'Type' },
-  { key: 'Size, RUB mn',      label: 'Size, RUB mn' },
-  { key: 'Status',            label: 'Status' },
-  { key: 'Next connection',   label: 'Next connection' },
-  { key: 'Comments',          label: 'Comments', type: 'textarea' },
-]
+const FALLBACK_FIELDS = [
+  'Company','Date','Sector','Seniot','Junior team','Source','Source Name','Type','Size, RUB mn','Status','Next connection','Comments'
+] as const
 
 export default function DealForm({
   initial,
   onSubmit,
   onCancel,
+  fields,
 }: {
   initial?: DealRow
   onSubmit: (row: DealRow) => void
   onCancel: () => void
+  fields?: string[]
 }) {
   const { user } = useAuth()
 
   // Безопасная инициализация: никакого .forEach у undefined
+  const fieldKeys: string[] = (fields && fields.length>0 ? fields : Array.from(new Set([...(Object.keys(initial ?? {})), ...FALLBACK_FIELDS]))).filter(k => !['id','ownerId','_owner'].includes(String(k)))
   const [form, setForm] = useState<Record<string, string>>(() => {
     const obj: Record<string, string> = {}
-    FIELDS.forEach(f => { obj[f.key] = String(initial?.[f.key] ?? '') })
+    fieldKeys.forEach(key => { obj[key] = String(initial?.[key] ?? '') })
     return obj
   })
 
@@ -58,20 +49,20 @@ export default function DealForm({
   return (
     <form onSubmit={submit} className="grid gap-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {FIELDS.map(f => (
-          <div key={f.key} className={f.type === 'textarea' ? 'md:col-span-2' : ''}>
-            <div className="text-sm opacity-80 mb-1">{f.label}</div>
-            {f.type === 'textarea' ? (
+        {fieldKeys.map(key => (
+          <div key={key} className={key === 'Comments' ? 'md:col-span-2' : ''}>
+            <div className="text-sm opacity-80 mb-1">{key}</div>
+            {key === 'Comments' ? (
               <textarea
                 className="w-full glass px-3 py-2 rounded-2xl outline-none min-h-[96px]"
-                value={form[f.key]}
-                onChange={e => change(f.key, e.target.value)}
+                value={form[key]}
+                onChange={e => change(key, e.target.value)}
               />
             ) : (
               <input
                 className="w-full glass px-3 py-2 rounded-2xl outline-none"
-                value={form[f.key]}
-                onChange={e => change(f.key, e.target.value)}
+                value={form[key]}
+                onChange={e => change(key, e.target.value)}
               />
             )}
           </div>
@@ -79,12 +70,8 @@ export default function DealForm({
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onCancel} className="glass px-4 py-2 rounded-2xl hover:bg-white/10">
-          Отмена
-        </button>
-        <button type="submit" className="glass px-4 py-2 rounded-2xl hover:bg-white/10">
-          Сохранить
-        </button>
+        <button type="button" onClick={onCancel} className="glass px-4 py-2 rounded-2xl hover:bg-white/10">Cancel</button>
+        <button type="submit" className="glass px-4 py-2 rounded-2xl hover:bg-white/10">Save</button>
       </div>
     </form>
   )

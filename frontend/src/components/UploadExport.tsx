@@ -33,10 +33,8 @@ export default function UploadExport<T extends AnyRow>({
       } else {
         alert('Поддерживаются .csv, .xlsx, .xls')
       }
-      if (parsed.length) {
-        onImport(parsed)
-        setMeta({ count: parsed.length, file: file.name })
-      }
+      onImport(parsed)
+      setMeta({ count: parsed.length, file: file.name })
     } catch (err) {
       console.error(err)
       alert('Не удалось импортировать файл')

@@ -3,9 +3,9 @@ import { canEditRow } from '../auth/auth'
 
 export const KEYS = {
   // Contacts
-  contactPersons: ['Contact persons','Contact person','contact persons','contact person','Контакты','Контакт'],
-  contactedPerson: ['Contacted person','contacted person','Связанный контакт'],
-  sourceName: ['Source Name','source name','Источник'],
+  contactPersons: ['Contact persons','Contact person','contact persons','contact person','Контакты','Контакт','Investor','investor'],
+  contactedPerson: ['Contacted person','contacted person','Связанный контакт','Investor','investor'],
+  sourceName: ['Source Name','source name','Источник','Investor','investor'],
   // Deals
   status: ['Status','status','Статус','статус'],
   type: ['Type','type','Тип','тип'],

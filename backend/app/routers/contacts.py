@@ -8,6 +8,7 @@ from ..models.contact import Contact as ContactModel
 from ..models.user import User as UserModel
 from ..schemas.contact import Contact, ContactCreate, ContactUpdate, ContactImport
 from ..dependencies import get_current_active_user
+from ..config import settings
 from ..services.permissions import PermissionService
 
 router = APIRouter(prefix="/api/contacts", tags=["Контакты"])
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/api/contacts", tags=["Контакты"])
 @router.get("", response_model=List[Contact], summary="Получить список контактов")
 async def get_contacts(
     skip: int = Query(0, ge=0, description="Количество пропускаемых записей"),
-    limit: int = Query(100, ge=1, le=1000, description="Максимальное количество записей"),
+    limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей (если не указано — вернуть все)"),
     owner_id: Optional[str] = Query(None, description="Фильтр по владельцу"),
     search: Optional[str] = Query(None, description="Поиск по имени контакта"),
     db: Session = Depends(get_db),
@@ -40,8 +41,26 @@ async def get_contacts(
     if search:
         query = query.filter(ContactModel.contact.ilike(f"%{search}%"))
     
-    contacts = query.offset(skip).limit(limit).all()
+    if limit is not None:
+        contacts = query.offset(skip).limit(limit).all()
+    else:
+        contacts = query.offset(skip).all()
     return [Contact.model_validate(c) for c in contacts]
+
+@router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT, summary="Очистить все контакты (MVP)")
+async def clear_contacts(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    """
+    Массовое удаление всех контактов (MVP).
+    Доступно всем аутентифицированным пользователям.
+    """
+    if settings.env == "prod":
+        raise HTTPException(status_code=403, detail="Disabled in production")
+    db.query(ContactModel).delete()
+    db.commit()
+    return None
 
 
 @router.get("/{contact_id}", response_model=Contact, summary="Получить контакт по ID")
@@ -167,7 +186,6 @@ async def delete_contact(
     
     return None
 
-
 @router.post("/import", response_model=List[Contact], summary="Массовый импорт контактов")
 async def import_contacts(
     import_data: ContactImport,
@@ -186,15 +204,17 @@ async def import_contacts(
     created_contacts = []
     
     for contact_data in import_data.contacts:
-        # Извлекаем имя контакта из различных возможных полей
-        contact_name = (
+        # Извлекаем имя контакта из различных возможных полей, включая Investor
+        raw = (
             contact_data.get("contact") or
-            contact_data.get("Contact persons") or
-            contact_data.get("Contacted person") or
-            contact_data.get("Source Name") or
+            contact_data.get("Investor") or contact_data.get("investor") or
+            contact_data.get("Contact persons") or contact_data.get("contact persons") or
+            contact_data.get("Contacted person") or contact_data.get("contacted person") or
+            contact_data.get("Source Name") or contact_data.get("source name") or
             ""
-        ).strip()
-        
+        )
+        contact_name = str(raw).strip()
+        # Скипаем пустые строки (включая строки из пробелов)
         if not contact_name:
             continue
         

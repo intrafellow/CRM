@@ -90,5 +90,10 @@ export async function importContacts(data: ContactImport): Promise<Contact[]> {
   })
 }
 
-
+/**
+ * Массовое удаление всех контактов (MVP: для поддержки сценария "показывать только последний импорт")
+ */
+export async function deleteAllContacts(): Promise<void> {
+  await apiFetch<void>('/contacts/clear', { method: 'DELETE' })
+}
 

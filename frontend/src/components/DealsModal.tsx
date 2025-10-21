@@ -7,7 +7,7 @@ export type DealRow = Record<string, unknown> & {
   id?: string; _owner?: string; owner_id?: string; ownerId?: string; owner?: string; ownerID?: string
 }
 type SelectedMap = Record<string, Set<string>>
-type FilterKey = 'responsible' | 'status' | 'sector' | 'type'
+type FilterKey = 'responsible' | 'status' | 'sector' | 'type' | 'company' | 'date' | 'source' | 'sourceName' | 'sizeRub' | 'nextConn'
 
 const S = (v: unknown) => String(v ?? '').trim()
 const genId = () => `deal_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`
@@ -17,19 +17,32 @@ const PREFERRED_ORDER = [
   'Type','Size, RUB mn','Status','Next connection','Stage','Comment',
   'Responsible','Amount','Sum'
 ]
-const HIDDEN_COLS = ['id','_owner','owner_id','ownerId','owner','ownerID'] as const
+const HIDDEN_COLS = ['id','_owner','owner_id','ownerId','owner','ownerID','__parsed_extra','__canon_write'] as const
 const isHidden = (k: string) => (HIDDEN_COLS as readonly string[]).includes(k)
 
-function collectUnique(rows: DealRow[], keys: FilterKey[]) {
-  const out: Record<FilterKey, string[]> = { responsible:[], status:[], sector:[], type:[] }
-  for (const k of keys) {
+const FILTERS: Array<{ key: FilterKey; label: string; get: (r: DealRow)=>string }> = [
+  { key: 'responsible', label: 'Responsible',   get: r => S(pickFirst(r, KEYS.responsible) ?? '') },
+  { key: 'status',      label: 'Status',        get: r => S(pickFirst(r, KEYS.status) ?? '') },
+  { key: 'sector',      label: 'Sector',        get: r => S(pickFirst(r, KEYS.sector) ?? '') },
+  { key: 'type',        label: 'Type',          get: r => S(pickFirst(r, KEYS.type) ?? '') },
+  { key: 'company',     label: 'Company',       get: r => S((r as any)['Company']) },
+  { key: 'date',        label: 'Date',          get: r => S((r as any)['Date']) },
+  { key: 'source',      label: 'Source',        get: r => S((r as any)['Source']) },
+  { key: 'sourceName',  label: 'Source Name',   get: r => S((r as any)['Source Name']) },
+  { key: 'sizeRub',     label: 'Size, RUB mn',  get: r => S((r as any)['Size, RUB mn']) },
+  { key: 'nextConn',    label: 'Next connection', get: r => S((r as any)['Next connection']) },
+]
+
+function collectUnique(rows: DealRow[]) {
+  const out: Record<string, string[]> = {}
+  for (const f of FILTERS) {
     const set = new Set<string>()
     for (const r of rows) {
-      const val = S(pickFirst(r, KEYS[k])); if (val) set.add(val)
+      const val = f.get(r); if (val) set.add(val)
     }
-    out[k] = Array.from(set).sort((a,b)=>a.localeCompare(b))
+    out[f.key] = Array.from(set).sort((a,b)=>a.localeCompare(b))
   }
-  return out
+  return out as Record<FilterKey, string[]>
 }
 
 function Pill({ children, active, onClick }:{
@@ -62,12 +75,54 @@ export default function DealsModal({
   const { user } = useAuth()
 
   const [baseRows, setBaseRows] = useState<DealRow[]>([])
+  // Семантическое слияние колонок (Comments/Comment, и т.д.)
+  const MERGE_MAP: Record<string, string[]> = {
+    Responsible: KEYS.responsible as unknown as string[],
+    Sector: KEYS.sector as unknown as string[],
+    Status: KEYS.status as unknown as string[],
+    Type: KEYS.type as unknown as string[],
+    Comments: ['Comments','Comment','Комментарий','Notes','Note'],
+    'Source Name': ['Source Name','Contact persons','Contacted person','Advisor'],
+  }
+
+  function mergeRow(row: DealRow): DealRow {
+    const out: Record<string, any> = { ...row }
+    const write: Record<string, string | null> = {}
+    // убрать артефакты парсера
+    delete out['__parsed_extra']
+    // для каждой канонической колонки проставляем первое непустое
+    for (const canon of Object.keys(MERGE_MAP)) {
+      const syns = MERGE_MAP[canon]
+      let chosenKey: string | null = null
+      let chosenVal: string = ''
+      for (const k of syns) {
+        const v = String((out as any)[k] ?? '').trim()
+        if (v) { chosenKey = k; chosenVal = v; break }
+      }
+      if (String((out as any)[canon] ?? '').trim() && !chosenVal) {
+        chosenKey = canon
+        chosenVal = String((out as any)[canon])
+      }
+      if (chosenKey) {
+        ;(out as any)[canon] = chosenVal
+        write[canon] = chosenKey
+      } else {
+        write[canon] = null
+      }
+      // удаляем синонимы, чтобы не плодить столбцы
+      for (const k of syns) if (k !== canon) delete (out as any)[k]
+    }
+    ;(out as any)['__canon_write'] = write
+    return out as DealRow
+  }
+
   useEffect(() => {
     const withIds = rows.map(r => (r.id ? r : { ...r, id: genId() }))
-    setBaseRows(withIds)
+    const merged = withIds.map(mergeRow)
+    setBaseRows(merged)
   }, [rows])
 
-  const FILTER_KEYS: FilterKey[] = ['responsible','status','sector','type']
+  const FILTER_KEYS: FilterKey[] = FILTERS.map(f => f.key)
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<SelectedMap>({})
   const [openKey, setOpenKey] = useState<FilterKey | null>(null)
@@ -101,7 +156,22 @@ export default function DealsModal({
     if (!currentRow) return
     
     const updatedRow: DealRow = { ...currentRow }
-    Object.keys(draft).forEach(k => { if (!isHidden(k)) (updatedRow as any)[k] = draft[k] })
+    Object.keys(draft).forEach(k => {
+      if (isHidden(k)) return
+      let targetKey = k
+      if (k in MERGE_MAP) {
+        const writeMap = (currentRow as any)['__canon_write'] as Record<string, string | null> | undefined
+        const originalKey = writeMap?.[k]
+        if (originalKey) targetKey = originalKey
+      }
+      ;(updatedRow as any)[targetKey] = draft[k]
+      // убираем дубликаты-синонимы после записи
+      if (k in MERGE_MAP) {
+        for (const syn of MERGE_MAP[k]) {
+          if (syn !== targetKey) delete (updatedRow as any)[syn]
+        }
+      }
+    })
     
     try {
       // Если это новая запись (нет id в исходных данных) или есть callback для добавления
@@ -135,7 +205,7 @@ export default function DealsModal({
       }
       setBaseRows(prev => prev.filter(r => r.id !== id))
     } catch (err: any) {
-      alert(`Ошибка удаления: ${err.message}`)
+      alert(`Deleting Error: ${err.message}`)
     }
   }
 
@@ -151,7 +221,7 @@ export default function DealsModal({
     setDraft(d)
   }
 
-  const uniques = useMemo(() => collectUnique(baseRows, FILTER_KEYS), [baseRows])
+  const uniques = useMemo(() => collectUnique(baseRows), [baseRows])
 
   const toggleVal = (k: FilterKey, v: string) => {
     setSelected(prev => {
@@ -171,7 +241,8 @@ export default function DealsModal({
     const activeKeys = FILTER_KEYS.filter(k => (selected[k]?.size ?? 0) > 0)
     return baseRows.filter(r => {
       for (const k of activeKeys) {
-        const picked = S(pickFirst(r, KEYS[k])); if (!selected[k]!.has(picked)) return false
+        const getter = FILTERS.find(f => f.key === k)!.get
+        const picked = getter(r); if (!selected[k]!.has(picked)) return false
       }
       if (hasQuery) {
         const hay = Object.entries(r)
@@ -212,7 +283,7 @@ export default function DealsModal({
           <input
             value={q}
             onChange={e => setQ(e.target.value)}
-            placeholder="Поиск..."
+            placeholder="Search..."
             className="input pill rounded-full px-3 py-2 flex-1 bg-black/5 border border-black/20 outline-none"
           />
           <div className="flex items-center gap-3 ml-auto">
@@ -220,7 +291,7 @@ export default function DealsModal({
               type="button"
               onClick={clearAll}
               className="pill rounded-full px-3 py-2 bg-black/5 border border-black/20 hover:bg-black/10"
-            >Сбросить</button>
+            >Reset</button>
             <button
               type="button"
               onClick={addRow}
@@ -230,29 +301,37 @@ export default function DealsModal({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-8 items-center">
-          {(['responsible','status','sector','type'] as FilterKey[]).map((k) => (
-            <div key={k} className="flex items-center gap-2">
-              <Pill active={openKey===k} onClick={()=>setOpenKey(prev=>prev===k?null:k)}>
-                <span className="capitalize">{k}</span>
-                {countSelected(k)>0 && <span className="ml-2 text-xs opacity-80">({countSelected(k)})</span>}
+      <div className="mt-3 flex flex-wrap gap-2 items-center">
+          {FILTERS.map((f) => (
+            <div key={f.key} className="flex items-center gap-2">
+              <Pill active={openKey===f.key} onClick={()=>setOpenKey(prev=>prev===f.key?null:f.key)}>
+                <span className="capitalize">{f.label}</span>
+                {countSelected(f.key)>0 && <span className="ml-2 text-xs opacity-80">({countSelected(f.key)})</span>}
               </Pill>
             </div>
           ))}
+          {/* Дополнительные быстрые фильтры по значениям для активного ключа */}
+          {openKey && (
+            <div className="flex flex-wrap gap-2 ml-2 max-h-40 overflow-auto">
+              {(uniques[openKey] ?? []).map(v => (
+                <Pill key={v} active={Boolean(selected[openKey]?.has(v))} onClick={()=>toggleVal(openKey, v)}>{v}</Pill>
+              ))}
+            </div>
+          )}
         </div>
 
         {openKey && (
           <div className="mt-3 glass rounded-2xl p-3 border border-black/10">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm opacity-80 capitalize">Выбор: {openKey}</div>
+              <div className="text-sm opacity-80 capitalize">Select: {FILTERS.find(f=>f.key===openKey)?.label}</div>
               <button
                 type="button"
                 className="pill rounded-full px-3 py-1 bg-black/5 border border-black/20 hover:bg-black/10"
                 onClick={()=>setOpenKey(null)}
-              >Назад</button>
+              >Back</button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(collectUnique(baseRows,[openKey])[openKey] ?? []).map(v => (
+              {(uniques[openKey] ?? []).map(v => (
                 <Pill key={v}
                   active={Boolean(selected[openKey]?.has(v))}
                   onClick={()=>toggleVal(openKey, v)}

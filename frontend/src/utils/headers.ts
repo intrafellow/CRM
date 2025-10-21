@@ -21,7 +21,7 @@ export function findHeader(headers: string[], candidates: string[]): string | nu
 }
 
 export function stripInternalKeys<T extends Record<string, unknown>>(row: T) {
-  const banned = new Set(['id','_id','_owner','owner','ownerId','_ownerEmail','__meta']);
+  const banned = new Set(['id','_id','_owner','owner','ownerId','_ownerEmail','__meta','__parsed_extra']);
   const out: Record<string, unknown> = {};
   for (const k of Object.keys(row ?? {})) if (!banned.has(k)) out[k] = (row as any)[k];
   return out as T;

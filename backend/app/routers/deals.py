@@ -9,6 +9,7 @@ from ..models.user import User as UserModel
 from ..schemas.deal import Deal, DealCreate, DealUpdate, DealImport
 from ..dependencies import get_current_active_user
 from ..services.permissions import PermissionService
+from ..config import settings
 
 router = APIRouter(prefix="/api/deals", tags=["Сделки"])
 
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/api/deals", tags=["Сделки"])
 @router.get("", response_model=List[Deal], summary="Получить список сделок")
 async def get_deals(
     skip: int = Query(0, ge=0, description="Количество пропускаемых записей"),
-    limit: int = Query(100, ge=1, le=1000, description="Максимальное количество записей"),
+    limit: Optional[int] = Query(None, ge=1, description="Максимальное количество записей (если не указано — вернуть все)"),
     owner_id: Optional[str] = Query(None, description="Фильтр по владельцу"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
@@ -34,7 +35,10 @@ async def get_deals(
     if owner_id:
         query = query.filter(DealModel.owner_id == owner_id)
     
-    deals = query.offset(skip).limit(limit).all()
+    if limit is not None:
+        deals = query.offset(skip).limit(limit).all()
+    else:
+        deals = query.offset(skip).all()
     return [Deal.model_validate(d) for d in deals]
 
 
@@ -136,6 +140,21 @@ async def update_deal(
     return Deal.model_validate(deal)
 
 
+@router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT, summary="Очистить все сделки (MVP)")
+async def clear_deals(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    """
+    Массовое удаление всех сделок (MVP).
+    Доступно всем аутентифицированным пользователям.
+    """
+    if settings.env == "prod":
+        raise HTTPException(status_code=403, detail="Disabled in production")
+    db.query(DealModel).delete()
+    db.commit()
+    return None
+
 @router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Удалить сделку")
 async def delete_deal(
     deal_id: str,
@@ -168,8 +187,6 @@ async def delete_deal(
     db.commit()
     
     return None
-
-
 @router.post("/import", response_model=List[Deal], summary="Массовый импорт сделок")
 async def import_deals(
     import_data: DealImport,
@@ -189,10 +206,35 @@ async def import_deals(
     created_deals = []
     
     for deal_data in import_data.deals:
-        # Убираем системные поля, если они есть
-        clean_data = {k: v for k, v in deal_data.items() if k not in ["id", "owner_id", "created_at", "updated_at"]}
-        
-        if not clean_data:
+        # Убираем только служебные поля и пустые имена колонок; нормализуем значения
+        clean_data = {}
+        has_nonempty_value = False
+        for k, v in deal_data.items():
+            if k in ("id", "owner_id", "created_at", "updated_at"):
+                continue
+            if not isinstance(k, str) or not k.strip():
+                continue
+            # Нормализация значения
+            normalized_empty = False
+            if v is None:
+                normalized_empty = True
+            elif isinstance(v, str):
+                if v.strip() == "":
+                    normalized_empty = True
+                else:
+                    v = v.strip()
+            elif isinstance(v, (list, dict)):
+                # Не сохраняем структурные значения из парсинга
+                normalized_empty = True
+            # Проверяем непустоту
+            if not normalized_empty:
+                has_nonempty_value = True
+                clean_data[k] = v
+            else:
+                # пропускаем пустые значения вовсе
+                pass
+        # Если нет ни одного непустого значения — пропускаем строку (включая строки вида ,,,,,, или с пробелами)
+        if not clean_data or not has_nonempty_value:
             continue
         
         deal = DealModel(

@@ -47,28 +47,37 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<ModalState>({ open: false })
 
-  // Загрузка данных из API
+  // Загрузка данных из API (агрегация из всех листов)
   const loadData = async () => {
     try {
       setLoading(true)
-      const [contacts, deals] = await Promise.all([
-        API.getContacts(),
-        API.getDeals()
+      const [pipeline, companies, advisors, investors] = await Promise.all([
+        API.getPipeline(),
+        API.getCompanies(),
+        API.getAdvisors(),
+        API.getInvestors(),
       ])
       
-      // Преобразование контактов
-      const contactRows: ContactRow[] = contacts.map(c => ({
-        id: c.id,
-        contact: c.contact,
-        ownerId: c.owner_id
-      }))
-      
-      // Преобразование сделок (добавляем все поля из data)
-      const dealRows: DealRow[] = deals.map(d => ({
-        id: d.id,
-        ownerId: d.owner_id,
-        ...d.data
-      }))
+      // Собираем единый список сделок из всех листов
+      const dealRows: DealRow[] = [
+        ...pipeline.map(d => ({ id: d.id, ownerId: d.owner_id, ...d.data })),
+        ...companies.map(d => ({ id: d.id, ownerId: d.owner_id, ...d.data })),
+        ...advisors.map(d => ({ id: d.id, ownerId: d.owner_id, ...d.data })),
+        ...investors.map(d => ({ id: d.id, ownerId: d.owner_id, ...d.data })),
+      ]
+      // strip parser artifacts
+      dealRows.forEach(r => { delete (r as any)['__parsed_extra'] })
+
+      // Вычисляем контакты из приоритетных колонок
+      const candidateKeys = ['Source Name','Contacted person','Contact persons','Investor']
+      const contactSet = new Set<string>()
+      for (const r of dealRows) {
+        for (const k of candidateKeys) {
+          const v = String((r as any)[k] ?? '').trim()
+          if (v) contactSet.add(v)
+        }
+      }
+      const contactRows: ContactRow[] = Array.from(contactSet).map((name, i) => ({ id: `ct_${i}`, contact: name }))
       
       setAllContacts(contactRows)
       setAllDeals(dealRows)
@@ -137,15 +146,15 @@ export default function Dashboard() {
   const gridLine = 'rgba(0,0,0,0.1)'
 
   const metrics = [
-    { label: 'Контакты', value: contactsCount },
-    { label: 'Сделки', value: dealsCount },
-    { label: 'Ответственные (разные)', value: byResponsible.filter(x => x.name && x.name !== '—').length },
+    { label: 'Contacts', value: contactsCount },
+    { label: 'Deals', value: dealsCount },
+    { label: 'Responsibles (unique)', value: byResponsible.filter(x => x.name && x.name !== '—').length },
   ]
 
   if (loading) {
     return (
       <div className="p-4">
-        <LiquidCard>Загрузка данных...</LiquidCard>
+        <LiquidCard>Loading data...</LiquidCard>
       </div>
     )
   }
@@ -162,7 +171,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Ответственные: количество сделок">
+        <ChartCard title="Responsibles: number of deals">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={byResponsible}>
               <CartesianGrid stroke={gridLine} strokeDasharray="3 3" />
@@ -175,7 +184,7 @@ export default function Dashboard() {
                     key={`r-${entry.name}`}
                     fill={PALETTE[idx % PALETTE.length]}
                     onClick={() => openFiltered(
-                      `Ответственный: ${entry.name}`,
+                      `Responsible: ${entry.name}`,
                       (r) => String(pickFirst(r, KEYS.responsible) ?? '') === entry.name
                     )}
                     style={{ cursor: 'pointer' }}
@@ -186,7 +195,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Сектора (клик — показать сделки)">
+        <ChartCard title="Sectors (click to show deals)">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie dataKey="value" data={bySector} innerRadius={55} outerRadius={80}>
@@ -195,7 +204,7 @@ export default function Dashboard() {
                     key={`s-${entry.name}`}
                     fill={PALETTE[idx % PALETTE.length]}
                     onClick={()=> openFiltered(
-                      `Сектор: ${entry.name}`,
+                      `Sector: ${entry.name}`,
                       (r)=> String(pickFirst(r, KEYS.sector) ?? '') === entry.name
                     )}
                     style={{ cursor:'pointer' }}
@@ -207,7 +216,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Статусы (кол-во)">
+        <ChartCard title="Statuses (count)">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={byStatus}>
               <CartesianGrid stroke={gridLine} strokeDasharray="3 3" />
@@ -220,7 +229,7 @@ export default function Dashboard() {
                     key={`st-${entry.name}`}
                     fill={PALETTE[idx % PALETTE.length]}
                     onClick={()=> openFiltered(
-                      `Статус: ${entry.name}`,
+                      `Status: ${entry.name}`,
                       (r)=> String(pickFirst(r, KEYS.status) ?? '') === entry.name
                     )}
                     style={{ cursor:'pointer' }}
@@ -231,7 +240,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Типы (кол-во)">
+        <ChartCard title="Types (count)">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie dataKey="value" data={byType} innerRadius={55} outerRadius={80}>

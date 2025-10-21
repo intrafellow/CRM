@@ -32,10 +32,10 @@ export default function DealFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose}/>
       <div className="relative w-[min(1000px,calc(100vw-32px))] max-h-[90vh] overflow-auto">
-        <LiquidCard>
+        <LiquidCard className="rounded-lg">
           <div className="flex items-start gap-3">
             <div className="text-lg font-medium">{title}</div>
-            <button className="ml-auto pill rounded-full px-4 py-2 bg-white/10 border border-white/20 hover:bg-white/14" onClick={onClose}>Закрыть</button>
+            <button className="ml-auto px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 hover:bg-white/14" onClick={onClose}>Close</button>
           </div>
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -54,13 +54,13 @@ export default function DealFormModal({
 
           <div className="mt-4 flex items-center">
             <button
-              className="pill rounded-full px-4 py-2 bg-white/10 border border-white/25 hover:bg-white/14"
+              className="px-4 py-2 rounded-lg bg-white/10 border border-white/25 hover:bg-white/14"
               onClick={onClose}
-            >Отмена</button>
+            >Cancel</button>
             <button
-              className="ml-auto pill rounded-full px-5 py-2 border border-white/30 bg-white/20 hover:bg-white/30"
+              className="ml-auto px-5 py-2 rounded-lg border border-white/30 bg-white/20 hover:bg-white/30"
               onClick={()=> onSave(draft)}
-            >Сохранить</button>
+            >Save</button>
           </div>
         </LiquidCard>
       </div>

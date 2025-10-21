@@ -21,7 +21,7 @@ export default function Register() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     const r = await register(email.trim(), password, role)
-    if (!r.ok) { setErr(r.error || 'Ошибка'); return }
+    if (!r.ok) { setErr(r.error || 'Registration error'); return }
     nav('/verify?email=' + encodeURIComponent(email))
   }
 
@@ -36,7 +36,7 @@ export default function Register() {
 
   return (
     <AuthShell>
-      <GlassCard title="Регистрация" subtitle="Выберите роль: начальник (admin) или сотрудник">
+      <GlassCard title="Sign up" subtitle="Choose role: admin or employee">
         <form className="grid gap-5" onSubmit={submit}>
           <AuthInput
             label="E-mail"
@@ -46,15 +46,15 @@ export default function Register() {
             left={<Mail size={18} />}
           />
           <PasswordInput
-            label="Пароль"
-            placeholder="Минимум 8 символов"
+            label="Password"
+            placeholder="Minimum 8 characters"
             value={password}
             onChange={setPassword}
           />
 
           <div className="grid gap-1">
-            <span className="small">Роль</span>
-            <div role="radiogroup" aria-label="Роль" className="flex gap-2">
+            <span className="small">Role</span>
+            <div role="radiogroup" aria-label="Role" className="flex gap-2">
               {/* Сотрудник */}
               <label className="cursor-pointer">
                 <input
@@ -65,7 +65,7 @@ export default function Register() {
                   checked={role === 'employee'}
                   onChange={() => setRole('employee')}
                 />
-                <span className={pillSpan}>Сотрудник</span>
+                <span className={pillSpan}>Employee</span>
               </label>
 
               {/* Начальник */}
@@ -78,7 +78,7 @@ export default function Register() {
                   checked={role === 'admin'}
                   onChange={() => setRole('admin')}
                 />
-                <span className={pillSpan}>Начальник</span>
+                <span className={pillSpan}>Admin</span>
               </label>
             </div>
           </div>
@@ -86,10 +86,10 @@ export default function Register() {
           {err && <div className="glass pill px-3 py-2 text-red-300">⚠ {err}</div>}
 
           <div className="flex items-center">
-            <PillButton asLinkTo="/login" variant="ghost" subtle>Войти</PillButton>
+            <PillButton asLinkTo="/login" variant="ghost" subtle>Sign in</PillButton>
             <div className="ml-auto">
               <PillButton type="submit" variant="primary">
-                <UserPlus size={16} className="mr-2 inline" />Зарегистрироваться
+                <UserPlus size={16} className="mr-2 inline" />Create account
               </PillButton>
             </div>
           </div>

@@ -27,6 +27,6 @@ def get_db():
 
 def init_db():
     """Инициализация базы данных"""
-    from app.models import user, contact, deal  # импорт моделей
+    from app.models import user, contact, deal, pipeline, companies, advisors, investors, audit  # импорт моделей
     Base.metadata.create_all(bind=engine)
 

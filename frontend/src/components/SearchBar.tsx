@@ -4,6 +4,7 @@ export default function SearchBar({ value, onChange, placeholder }: Props) {
     <input
       value={value}
       onChange={e => onChange(e.target.value)}
+      onKeyDown={e => { if (e.key === 'Escape') { onChange(''); (e.currentTarget as HTMLInputElement).blur() } }}
       placeholder={placeholder ?? 'Поиск...'}
       className="w-full md:w-80 glass px-4 py-2 rounded-2xl outline-none text-slate-900 placeholder-black/40"
     />

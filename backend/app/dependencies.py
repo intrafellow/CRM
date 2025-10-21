@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -12,8 +12,9 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ) -> User:
     """Получение текущего пользователя из JWT токена"""
     credentials_exception = HTTPException(
@@ -22,8 +23,17 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    token = credentials.credentials
-    token_data = AuthService.decode_token(token)
+    token: str | None = None
+    # 1) cookie
+    try:
+        token = request.cookies.get("access_token") if request else None
+    except Exception:
+        token = None
+    # 2) Authorization header fallback
+    if not token and credentials is not None:
+        token = credentials.credentials
+
+    token_data = AuthService.decode_token(token or "")
     
     if token_data is None or token_data.user_id is None:
         raise credentials_exception
@@ -33,6 +43,13 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     
+    # Обновляем last_login на любом защищенном запросе (фикс кейса, когда фронт не вызывал /auth/me)
+    try:
+        from datetime import datetime
+        user.last_login = datetime.utcnow()
+        db.commit()
+    except Exception:
+        pass
     return user
 
 

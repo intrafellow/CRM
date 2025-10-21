@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     app_name: str = "CRM API"
     app_version: str = "1.0.0"
     debug: bool = True
+    env: str = "dev"  # dev|prod
     
     # База данных
     database_url: str = "sqlite:///./crm.db"
@@ -19,11 +20,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 дней
     
     # CORS
-    cors_origins: list = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ]
+    cors_origins: list = ["http://localhost:5173","http://127.0.0.1:5173"]
     
     class Config:
         env_file = ".env"

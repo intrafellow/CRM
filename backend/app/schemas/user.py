@@ -31,6 +31,7 @@ class User(UserBase):
     verified: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None
 
     class Config:
         from_attributes = True

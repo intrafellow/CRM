@@ -88,5 +88,10 @@ export async function importDeals(data: DealImport): Promise<Deal[]> {
   })
 }
 
-
+/**
+ * Массовое удаление всех сделок (MVP: для поддержки сценария "показывать только последний импорт")
+ */
+export async function deleteAllDeals(): Promise<void> {
+  await apiFetch<void>('/deals/clear', { method: 'DELETE' })
+}
 

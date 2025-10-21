@@ -19,10 +19,10 @@ export default function Login() {
   const [showMockUsers, setShowMockUsers] = useState(false)
 
   const mockUsers = [
-    { email: 'admin@crm.com', password: 'admin123', role: 'Админ', icon: '👑' },
-    { email: 'ivan.petrov@crm.com', password: 'employee123', role: 'Сотрудник', icon: '👤' },
-    { email: 'maria.sidorova@crm.com', password: 'employee123', role: 'Сотрудник', icon: '👤' },
-    { email: 'alex.kuznetsov@crm.com', password: 'employee123', role: 'Сотрудник', icon: '👤' }
+    { email: 'admin@crm.com', password: 'admin123', role: 'Admin', icon: '👑' },
+    { email: 'ivan.petrov@crm.com', password: 'employee123', role: 'Employee', icon: '👤' },
+    { email: 'maria.sidorova@crm.com', password: 'employee123', role: 'Employee', icon: '👤' },
+    { email: 'alex.kuznetsov@crm.com', password: 'employee123', role: 'Employee', icon: '👤' }
   ]
 
   function fillCredentials(userEmail: string, userPassword: string) {
@@ -33,7 +33,7 @@ export default function Login() {
 
   function resetMockUsers() {
     try {
-      // Очищаем localStorage и пересоздаем пользователей
+      // Clear localStorage and recreate users
       if (typeof window !== 'undefined' && window.localStorage) {
         localStorage.removeItem('auth_users')
         localStorage.removeItem('auth_session')
@@ -41,21 +41,21 @@ export default function Login() {
       }
       initializeMockUsers()
       setErr(null)
-      console.log('🔄 Моковые пользователи сброшены и пересозданы')
+      console.log('🔄 Mock users reset & recreated')
     } catch (error) {
-      console.error('Ошибка сброса пользователей:', error)
-      setErr('Ошибка сброса пользователей')
+      console.error('Mock users reset failed:', error)
+      setErr('Mock users reset failed')
     }
   }
 
   function runDiagnostics() {
-    console.log('🔍 === ДИАГНОСТИКА СИСТЕМЫ ===')
-    console.log('🌐 Window доступен:', typeof window !== 'undefined')
-    console.log('💾 localStorage доступен:', typeof window !== 'undefined' && !!window.localStorage)
-    console.log('📊 Текущие пользователи:', localStorage.getItem('auth_users'))
-    console.log('🔑 Текущая сессия:', localStorage.getItem('auth_session'))
-    console.log('📧 Введенный email:', email)
-    console.log('🔒 Введенный пароль:', password ? '***' : '(пустой)')
+    console.log('🔍 === DIAGNOSTICS ===')
+    console.log('🌐 Window:', typeof window !== 'undefined')
+    console.log('💾 localStorage:', typeof window !== 'undefined' && !!window.localStorage)
+    console.log('📊 Users:', localStorage.getItem('auth_users'))
+    console.log('🔑 Session:', localStorage.getItem('auth_session'))
+    console.log('📧 Email:', email)
+    console.log('🔒 Password:', password ? '***' : '(empty)')
     
     // Проверяем хеши
     function hash(s: string) {
@@ -63,21 +63,21 @@ export default function Login() {
       for (let i = 0; i < s.length; i++) h = (h << 5) - h + s.charCodeAt(i) | 0;
       return String(h);
     }
-    console.log('🔑 Хеш admin123:', hash('admin123'))
-    console.log('🔑 Хеш employee123:', hash('employee123'))
-    console.log('🔍 === КОНЕЦ ДИАГНОСТИКИ ===')
+    console.log('🔑 Hash admin123:', hash('admin123'))
+    console.log('🔑 Hash employee123:', hash('employee123'))
+    console.log('🔍 === END DIAGNOSTICS ===')
   }
 
   async function submit(e: React.FormEvent){
     e.preventDefault()
     const r = await login(email.trim(), password)
-    if (!r.ok) { setErr(r.error || 'Ошибка'); return }
+    if (!r.ok) { setErr(r.error || 'Login error'); return }
     nav('/')
   }
 
   return (
     <AuthShell>
-      <GlassCard title="Вход" subtitle="Добро пожаловать в CRM Lite">
+      <GlassCard title="Sign in" subtitle="Welcome to CRM Lite">
         {/* Тестовые пользователи */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -87,9 +87,9 @@ export default function Login() {
               className="flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 transition-colors"
             >
               <Users size={16} />
-              Тестовые пользователи
+              Test users
               <span className="text-xs bg-black/10 px-2 py-0.5 rounded-full">
-                {showMockUsers ? 'скрыть' : 'показать'}
+                {showMockUsers ? 'hide' : 'show'}
               </span>
             </button>
             <div className="flex items-center gap-2">
@@ -97,25 +97,25 @@ export default function Login() {
                 type="button"
                 onClick={runDiagnostics}
                 className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-                title="Запустить диагностику системы"
+                title="Run diagnostics"
               >
-                🔍 Диагностика
+                🔍 Diagnostics
               </button>
               <button
                 type="button"
                 onClick={resetMockUsers}
                 className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-                title="Сбросить и пересоздать тестовых пользователей"
+                title="Reset and recreate test users"
               >
                 <RefreshCw size={12} />
-                Сбросить
+                Reset
               </button>
             </div>
           </div>
           
           {showMockUsers && (
             <div className="mt-3 p-4 glass rounded-lg border border-black/10">
-              <div className="text-sm text-slate-700 mb-3">Нажмите на пользователя для автозаполнения:</div>
+              <div className="text-sm text-slate-700 mb-3">Click a user to autofill:</div>
               <div className="grid gap-2">
                 {mockUsers.map((user, index) => (
                   <button
@@ -128,7 +128,7 @@ export default function Login() {
                       <span className="text-lg">{user.icon}</span>
                       <div>
                         <div className="text-sm font-medium text-slate-900">{user.email}</div>
-                        <div className="text-xs text-slate-600">Пароль: {user.password}</div>
+                        <div className="text-xs text-slate-600">Password: {user.password}</div>
                       </div>
                     </div>
                     <div className="text-xs bg-black/10 px-2 py-1 rounded-full">
@@ -149,7 +149,7 @@ export default function Login() {
             left={<Mail size={18}/>}
           />
           <PasswordInput
-            label="Пароль"
+            label="Password"
             placeholder="••••••••"
             value={password}
             onChange={setPassword}
@@ -173,7 +173,7 @@ export default function Login() {
                   'active:scale-[.99] transition'
                 }
               >
-                Создать аккаунт
+                Create account
               </PillButton>
             </Link>
 
@@ -191,7 +191,7 @@ export default function Login() {
                 }
               >
                 <LogIn size={14} className="mr-1.5 inline align-[-2px]" />
-                Войти
+                Sign in
                 <span
                   aria-hidden
                   className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-15 transition"

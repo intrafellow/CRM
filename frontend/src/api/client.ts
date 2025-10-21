@@ -2,8 +2,27 @@
  * API клиент для взаимодействия с backend
  */
 
+// Умное определение API URL
+function getApiUrl(): string {
+  // Если задан явно через переменную окружения
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // Автоматическое определение по hostname
+  const hostname = window.location.hostname
+  
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Локальная разработка
+    return 'http://localhost:8000/api'
+  } else {
+    // Продакшен (VM) - через Nginx на порту 80
+    return 'http://178.216.103.117/api'
+  }
+}
+
 // URL backend API
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+export const API_URL = getApiUrl()
 
 // Типы для API
 export interface ApiError {
@@ -46,6 +65,7 @@ export async function apiFetch<T>(
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include',
   })
   
   // Если 401 - токен невалиден, очищаем его
@@ -73,6 +93,9 @@ export async function apiFetch<T>(
   
   return response.json()
 }
+
+
+
 
 
 

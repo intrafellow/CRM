@@ -3,13 +3,17 @@ import { AuthProvider } from './auth/AuthContext'
 import { RequireAuth } from './auth/guards'
 import LiquidTopbar from './components/LiquidTopbar'
 import Dashboard from './pages/Dashboard'
-import Contacts from './pages/Contacts'
-import Deals from './pages/Deals'
+import Pipeline from './pages/Pipeline'
+import Companies from './pages/Companies'
+import Advisors from './pages/Advisors'
+import Investors from './pages/Investors'
+import AdminUsers from './pages/AdminUsers'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Verify from './pages/Verify'
 import Account from './pages/Account'
 import LiquidCard from './components/LiquidCard'
+import NotFound from './pages/NotFound'
 
 /**
  * ВАЖНО: Здесь НЕТ BrowserRouter.
@@ -22,13 +26,16 @@ export default function App() {
         <LiquidTopbar />
         <Routes>
           <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/deals" element={<Deals />} />
+          <Route path="/pipeline" element={<RequireAuth><Pipeline /></RequireAuth>} />
+          <Route path="/companies" element={<RequireAuth><Companies /></RequireAuth>} />
+          <Route path="/advisors" element={<RequireAuth><Advisors /></RequireAuth>} />
+          <Route path="/investors" element={<RequireAuth><Investors /></RequireAuth>} />
+          <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify" element={<Verify />} />
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
-          <Route path="*" element={<LiquidCard>404</LiquidCard>} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </AuthProvider>
